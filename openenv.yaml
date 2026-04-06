@@ -1,0 +1,116 @@
+name: transplant-logistics-env
+version: "1.0.0"
+description: >
+  Real-world organ transplant logistics and allocation environment.
+  An AI agent must act as a national transplant coordinator — matching
+  donor organs to recipients based on blood compatibility, HLA typing,
+  organ viability windows, transport logistics, and clinical urgency.
+  Simulates decisions that affect ~150,000 patients on waitlists globally.
+
+tags:
+  - openenv
+  - healthcare
+  - logistics
+  - real-world
+  - organ-allocation
+  - transplant
+
+author: "transplant-logistics-env"
+license: MIT
+
+environment:
+  type: sequential-decision
+  api: openenv-v1
+  framework: fastapi
+  language: python
+  python_version: "3.11"
+
+tasks:
+  - id: task_easy_clear_match
+    name: "Single kidney — clear best match"
+    difficulty: easy
+    max_steps: 8
+    description: >
+      One donor kidney, three recipients. Clear best match exists.
+      Tests basic blood type compatibility and urgency prioritisation.
+
+  - id: task_medium_cascade_allocation
+    name: "Multi-organ cascade — liver + heart under viability pressure"
+    difficulty: medium
+    max_steps: 14
+    description: >
+      Two organs from the same donor (heart 4h viability, liver 12h).
+      Heart must be matched first. High-PRA recipient is a trap.
+      Tests time-pressure reasoning and viability window management.
+
+  - id: task_hard_expiry_crisis
+    name: "Expiry crisis — misleading urgency + crossmatch hold"
+    difficulty: hard
+    max_steps: 20
+    description: >
+      Three donors, five recipients. The highest-urgency recipient has
+      a positive virtual crossmatch. A lung is expiring within 3 steps.
+      A high-KDPI kidney should go to an older recipient.
+      Tests multi-organ prioritisation, safety reasoning, and crossmatch protocol.
+
+observation_space:
+  type: structured
+  schema: TransplantObservation
+  fields:
+    - step: integer — current step index
+    - available_donors: list of Donor objects with organ type, blood type, viability
+    - waitlist: list of Recipient objects with urgency, PRA, HLA antibodies
+    - hospitals: list of Hospital objects with coordinates
+    - pending_matches: list of MatchRecord objects
+    - elapsed_minutes: float — simulated time elapsed
+    - alerts: list of urgency alerts (expiring organs)
+
+action_space:
+  type: structured
+  schema: TransplantAction
+  actions:
+    - match_organ: Propose a donor-recipient match
+    - dispatch_transport: Dispatch organ transport (ground/charter/commercial)
+    - request_crossmatch: Request virtual crossmatch for high-PRA recipient
+    - notify_team: Notify surgical team (ends episode)
+    - decline_organ: Decline an organ for a specific recipient
+    - reject_match: Remove a pending match
+    - pass_to_next: Pass to the next candidate on the waitlist
+
+reward:
+  type: dense
+  range: [-1.0, 1.0]
+  components:
+    - match_quality: compatibility score × viability margin × urgency multiplier
+    - dispatch_bonus: +0.15 per successful dispatch
+    - crossmatch_correct: +0.10 for requesting crossmatch on high-PRA recipient
+    - notify_bonus: +0.1 to +0.3 based on completion rate
+    - incompatible_match_penalty: -0.30
+    - dangerous_match_penalty: -0.20 (high-PRA without crossmatch)
+    - transit_expiry_penalty: -0.25 (organ expires in transit)
+    - bad_action_penalty: -0.05 to -0.10
+
+grader:
+  type: weighted-aggregate
+  range: [0.0, 1.0]
+  components:
+    transplant_rate:   0.35
+    quality:           0.25
+    viability_margin:  0.20
+    urgency_priority:  0.10
+    safety:            0.10
+
+deployment:
+  platform: huggingface-spaces
+  space_sdk: docker
+  port: 7860
+  health_endpoint: /health
+  docs_endpoint: /docs
+
+baseline:
+  model: gpt-4o-mini
+  scores:
+    task_easy_clear_match:          0.78
+    task_medium_cascade_allocation: 0.52
+    task_hard_expiry_crisis:        0.31
+  script: baseline/inference.py

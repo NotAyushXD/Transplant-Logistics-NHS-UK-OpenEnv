@@ -1,0 +1,46 @@
+{
+  "model": null,
+  "backend": "groq",
+  "seed": 42,
+  "results": [
+    {
+      "task_id": "task_easy_clear_match",
+      "difficulty": "easy",
+      "steps": 2,
+      "total_reward": 1.2372,
+      "grade_transplant_rate": 1.0,
+      "grade_quality": 1.0,
+      "grade_viability_margin": 1.0,
+      "grade_urgency_priority": 1.0,
+      "grade_safety": 1.0,
+      "grade_organs_wasted": 0,
+      "grade_aggregate": 1.0
+    },
+    {
+      "task_id": "task_medium_cascade_allocation",
+      "difficulty": "medium",
+      "steps": 5,
+      "total_reward": 2.1919,
+      "grade_transplant_rate": 1.0,
+      "grade_quality": 0.898,
+      "grade_viability_margin": 1.0,
+      "grade_urgency_priority": 0.333,
+      "grade_safety": 1.0,
+      "grade_organs_wasted": 0,
+      "grade_aggregate": 0.908
+    },
+    {
+      "task_id": "task_hard_expiry_crisis",
+      "difficulty": "hard",
+      "steps": 8,
+      "total_reward": 3.0499,
+      "grade_transplant_rate": 1.0,
+      "grade_quality": 0.77,
+      "grade_viability_margin": 1.0,
+      "grade_urgency_priority": 0.0,
+      "grade_safety": 1.0,
+      "grade_organs_wasted": 0,
+      "grade_aggregate": 0.842
+    }
+  ]
+}
