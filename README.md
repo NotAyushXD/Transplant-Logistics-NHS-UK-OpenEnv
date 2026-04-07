@@ -25,7 +25,7 @@ The agent acts as a national transplant coordinator — matching donor organs to
 - [Tasks](#tasks)
 - [Results](#results)
 - [Configuration](#configuration)
-- [Training with GRPO](#training-with-grpo)
+- [Training and Evaluation Pipeline](#training-and-evaluation-pipeline)
 - [How It Works](#how-it-works)
 - [File Structure](#file-structure)
 - [Troubleshooting](#troubleshooting)
@@ -286,25 +286,35 @@ Cold ischaemia limits:
 
 ---
 
-## Training with GRPO
+## Training and Evaluation Pipeline
 
-The training script fine-tunes a model using **GRPO (Group Relative Policy Optimisation)** — a recent RL algorithm from DeepSeek that eliminates the need for a separate critic network by using relative performance within a group of responses as its baseline.
+A standard workflow is to first evaluate a strong API baseline (like Groq) to measure zero-shot agent performance, then train a smaller local model using **GRPO (Group Relative Policy Optimisation)**, and finally evaluate the fine-tuned local model.
 
-> **GPU required.** CPU training is too slow to be practical.
+### 1. Establish Baselines via Groq API
+
+You can run the `train_grpo.py` script directly with Groq models to quickly collect rollout trajectories and score their performance. 
+*(Note: Supplying an API model seamlessly skips the PyTorch GRPO weight update "Phase 2" since we cannot alter remote model weights).*
+
+```bash
+# Requires GROQ_API_KEY environment variable. 
+# Automatically jumps to Phase 1 (rollouts) and Phase 3 (evaluation).
+python training/train_grpo.py \
+    --model llama-3.3-70b-versatile \
+    --backend groq \
+    --output ./checkpoints/transplant-grpo
+```
+
+### 2. Fine-tune a Local Model via GRPO
+
+Once you have baselines, you can train a smaller, open weights model locally using the environment directly. This requires an environment capable of computing gradients (PyTorch).
+
+> **GPU required.** CPU training for the underlying policy model is too slow to be practical.
 
 ```bash
 # API server must be running (see Usage above)
 python training/train_grpo.py \
     --model Qwen/Qwen2.5-1.5B-Instruct \
-    --epochs 3 \
-    --output ./checkpoints/transplant-grpo
-```
-
-Full options:
-
-```bash
-python training/train_grpo.py \
-    --model Qwen/Qwen2.5-1.5B-Instruct \
+    --backend hf \
     --epochs 3 \
     --batch-size 2 \
     --grad-accum 4 \
@@ -314,7 +324,9 @@ python training/train_grpo.py \
     --output ./checkpoints/transplant-grpo
 ```
 
-Evaluate after training:
+### 3. Evaluate the Fine-Tuned Model
+
+Once your model checkpoints are saved, you can run the inference script over them to thoroughly observe exactly what decisions the updated weights propose.
 
 ```bash
 python baseline/inference_hf.py \
@@ -378,6 +390,8 @@ The observation prompt explicitly shows:
 
 ```
 transplant-env/
+├── PROCESS.md                 Development process logging
+├── Dockerfile                 Container deployment configuration
 ├── models.py                  Pydantic data contracts (all shared types)
 ├── client.py                  HTTP client wrapper for training loops
 ├── nhs_data_explorer.py       NHS data inspection + heuristic smoke test
