@@ -48,8 +48,8 @@ _grader = TransplantGrader()
 # ── Request schemas ───────────────────────────────────────────────────────────
 
 class ResetRequest(BaseModel):
-    task_id: str = "task_easy_clear_match"
-    seed: int    = 42
+    task_id: str = "task_easy_clear_match"   # default task
+    seed: int = 42
 
 class StepRequest(BaseModel):
     task_id: str
@@ -127,3 +127,10 @@ def root():
         "endpoints": ["/health", "/tasks", "/reset", "/step", "/state", "/grade"],
         "docs":      "/docs",
     }
+
+def main():
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
+if __name__ == "__main__":
+    main()

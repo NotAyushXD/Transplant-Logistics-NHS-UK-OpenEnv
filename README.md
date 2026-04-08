@@ -1,3 +1,16 @@
+---
+title: Transplant Logistics OpenEnv
+emoji: 🫀
+colorFrom: red
+colorTo: pink
+sdk: docker
+pinned: false
+tags:
+  - openenv
+  - healthcare
+  - reinforcement-learning
+---
+
 # 🫀 Transplant Logistics — NHS UK OpenEnv
 
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)](https://www.python.org/)
@@ -33,6 +46,44 @@ The agent acts as a national transplant coordinator — matching donor organs to
 - [License](#license)
 
 ---
+<<<<<<< HEAD
+# 🫀 Transplant Logistics — NHS UK OpenEnv
+
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![OpenEnv](https://img.shields.io/badge/openenv-v1-blue)](https://github.com/meta-pytorch/OpenEnv)
+[![HuggingFace](https://img.shields.io/badge/🤗-Spaces-yellow)](https://huggingface.co/spaces)
+
+A **Reinforcement Learning environment** for training and evaluating AI agents on real-world organ transplant allocation decisions, calibrated to NHS Blood and Transplant (NHSBT) 2022/23 data.
+
+The agent acts as a national transplant coordinator — matching donor organs to recipients based on blood compatibility, HLA typing, organ viability windows, transport logistics, and clinical urgency, under severe time pressure.
+
+> 🏥 **~6,959 patients** were on the UK organ transplant waiting list at end March 2023.  
+> **~439 patients** die each year while waiting. Every allocation decision matters.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quickstart](#quickstart)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Tasks](#tasks)
+- [Results](#results)
+- [Configuration](#configuration)
+- [Training and Evaluation Pipeline](#training-and-evaluation-pipeline)
+- [How It Works](#how-it-works)
+- [File Structure](#file-structure)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+=======
+>>>>>>> 1e66112b55a7c0dd5d010cd4f57c33685fac1266
 
 ## Features
 
@@ -67,8 +118,13 @@ The agent acts as a national transplant coordinator — matching donor organs to
 
 ```bash
 # 1. Clone and set up
+<<<<<<< HEAD
 git clone https://github.com/your-username/transplant-env.git
 cd transplant-env
+=======
+git clone https://huggingface.co/spaces/Thanya710/transplant-logistics-env
+cd transplant-logistics-env
+>>>>>>> 1e66112b55a7c0dd5d010cd4f57c33685fac1266
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
@@ -448,3 +504,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 NHS statistics used for calibration are sourced from the publicly available
 [NHS Blood and Transplant Activity Report 2022/23](https://www.nhsbt.nhs.uk/what-we-do/transplantation-services/statistics-and-clinical-studies/activity-reports/).
+<<<<<<< HEAD
+
+=======
+>>>>>>> 1e66112b55a7c0dd5d010cd4f57c33685fac1266

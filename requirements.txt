@@ -1,27 +1,6 @@
-# ── Web server ────────────────────────────────────────────────────────────────
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic==2.8.2
 httpx==0.27.2
+openai==1.51.0
 python-multipart==0.0.12
-
-# ── Inference backends ────────────────────────────────────────────────────────
-# Groq (recommended — free tier, fast, no GPU needed)
-groq>=0.9.0
-
-# HuggingFace (API backend or local model inference)
-transformers>=4.44.0          # model loading + chat templates
-huggingface_hub>=0.24.0       # HF Inference API
-accelerate>=0.33.0            # required by transformers for device_map="auto"
-torch>=2.3.0                  # local inference; CPU works, GPU strongly preferred
-
-# ── RL training (only needed for training/train_grpo.py) ──────────────────────
-trl>=0.10.0                   # GRPOTrainer
-datasets>=2.20.0              # HuggingFace datasets
-
-# ── Utilities ─────────────────────────────────────────────────────────────────
-sentencepiece>=0.2.0          # tokeniser for some models (Qwen, Mistral)
-protobuf>=4.25.0              # required by some tokenisers
-
-# ── Data ──────────────────────────────────────────────────────────────────────
-kaggle>=1.6.0                 # optional: download NHS dataset from Kaggle
