@@ -113,4 +113,4 @@ baseline:
     task_easy_clear_match:          0.78
     task_medium_cascade_allocation: 0.52
     task_hard_expiry_crisis:        0.31
-  script: baseline/inference.py
+  script: inference.py

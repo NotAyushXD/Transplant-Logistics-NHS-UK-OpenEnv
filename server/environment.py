@@ -68,14 +68,14 @@ def transport_minutes(h1: Hospital, h2: Hospital,
                       mode: TransportMode) -> float:
     dist = haversine_km(h1.lat, h1.lon, h2.lat, h2.lon)
     speeds = {
-        TransportMode.GROUND:     60.0,   # km/h
-        TransportMode.CHARTER:   500.0,
-        TransportMode.COMMERCIAL: 700.0,
+        TransportMode.GROUND:     80.0,   # km/h — blue-light ambulance on UK motorways
+        TransportMode.CHARTER:   280.0,   # km/h — NHSBT air ambulance / helicopter
+        TransportMode.COMMERCIAL: 500.0,  # km/h — scheduled flight (rare for UK distances)
     }
     overhead = {
-        TransportMode.GROUND:      15,
-        TransportMode.CHARTER:     90,
-        TransportMode.COMMERCIAL: 180,
+        TransportMode.GROUND:      15,    # min — mobilisation
+        TransportMode.CHARTER:     60,    # min — helicopter pad prep + landing
+        TransportMode.COMMERCIAL: 150,    # min — airport transfer + boarding
     }
     return (dist / speeds[mode]) * 60 + overhead[mode]
 
@@ -128,15 +128,16 @@ def compatibility_score(donor: Donor, recipient: Recipient,
 # ── Task definitions ──────────────────────────────────────────────────────────
 
 def _hospitals() -> List[Hospital]:
+    """Real UK NHSBT transplant centres with accurate coordinates."""
     return [
-        Hospital(hospital_id="H_MUM", name="Mumbai PGIMS",      lat=19.076, lon=72.877, has_charter_access=True),
-        Hospital(hospital_id="H_DEL", name="AIIMS Delhi",        lat=28.567, lon=77.210, has_charter_access=True),
-        Hospital(hospital_id="H_BLR", name="Manipal Bengaluru",  lat=12.972, lon=77.594, has_charter_access=True),
-        Hospital(hospital_id="H_CHE", name="Apollo Chennai",     lat=13.082, lon=80.270, has_charter_access=True),
-        Hospital(hospital_id="H_HYD", name="KIMS Hyderabad",     lat=17.385, lon=78.487, has_charter_access=True),
-        Hospital(hospital_id="H_KOL", name="SSKM Kolkata",       lat=22.572, lon=88.363, has_charter_access=False),
-        Hospital(hospital_id="H_PUN", name="Ruby Hall Pune",     lat=18.520, lon=73.856, has_charter_access=True),
-        Hospital(hospital_id="H_AHM", name="Civil Ahmedabad",    lat=23.022, lon=72.571, has_charter_access=True),
+        Hospital(hospital_id="H_GUY", name="Guy's Hospital London",           lat=51.502, lon=-0.088, has_charter_access=True),
+        Hospital(hospital_id="H_PAP", name="Royal Papworth Hospital Cambridge",lat=52.224, lon= 0.034, has_charter_access=True),
+        Hospital(hospital_id="H_FRE", name="Freeman Hospital Newcastle",       lat=54.980, lon=-1.620, has_charter_access=True),
+        Hospital(hospital_id="H_QEB", name="Queen Elizabeth Hospital Birmingham",lat=52.453,lon=-1.935, has_charter_access=True),
+        Hospital(hospital_id="H_MRI", name="Manchester Royal Infirmary",       lat=53.461, lon=-2.226, has_charter_access=True),
+        Hospital(hospital_id="H_LGI", name="Leeds General Infirmary",          lat=53.803, lon=-1.551, has_charter_access=False),
+        Hospital(hospital_id="H_KCH", name="King's College Hospital London",   lat=51.468, lon=-0.094, has_charter_access=True),
+        Hospital(hospital_id="H_ERI", name="Edinburgh Royal Infirmary",        lat=55.922, lon=-3.135, has_charter_access=True),
     ]
 
 
@@ -148,16 +149,16 @@ TASKS: Dict[str, Dict] = {
         "name": "Single kidney — clear best match",
         "difficulty": "easy",
         "description": (
-            "A deceased donor kidney is available in Mumbai. "
+            "A deceased donor kidney is available at Guy's Hospital London. "
             "Three recipients are waitlisted; one is the clear best match "
-            "(compatible blood type, Status 1A, low PRA, same city). "
+            "(compatible blood type, Status 1A, low PRA, same hospital). "
             "Match, dispatch transport, and notify the surgical team."
         ),
         "max_steps": 8,
         "donors": [
             Donor(donor_id="D001", organ_type=OrganType.KIDNEY,
                   blood_type=BloodType.A_POS, age=42,
-                  hospital_id="H_MUM",
+                  hospital_id="H_GUY",
                   procurement_time_utc="2026-04-25T06:00:00Z",
                   viability_hours=24.0, hla_antigens=["A2", "B44"],
                   kdpi=0.35),
@@ -165,15 +166,15 @@ TASKS: Dict[str, Dict] = {
         "recipients": [
             Recipient(recipient_id="R001", organ_needed=OrganType.KIDNEY,
                       blood_type=BloodType.A_POS, age=38,
-                      hospital_id="H_MUM", urgency=UrgencyTier.STATUS_1A,
+                      hospital_id="H_GUY", urgency=UrgencyTier.STATUS_1A,
                       wait_days=420, hla_antibodies=[], pra=0.05),
             Recipient(recipient_id="R002", organ_needed=OrganType.KIDNEY,
                       blood_type=BloodType.AB_POS, age=55,
-                      hospital_id="H_DEL", urgency=UrgencyTier.STATUS_2,
+                      hospital_id="H_PAP", urgency=UrgencyTier.STATUS_2,
                       wait_days=120, hla_antibodies=["A2"], pra=0.45),
             Recipient(recipient_id="R003", organ_needed=OrganType.KIDNEY,
                       blood_type=BloodType.B_POS, age=40,   # incompatible
-                      hospital_id="H_BLR", urgency=UrgencyTier.STATUS_1B,
+                      hospital_id="H_FRE", urgency=UrgencyTier.STATUS_1B,
                       wait_days=200, hla_antibodies=[], pra=0.10),
         ],
         "required_actions": [
@@ -199,12 +200,12 @@ TASKS: Dict[str, Dict] = {
         "donors": [
             Donor(donor_id="D002", organ_type=OrganType.HEART,
                   blood_type=BloodType.O_POS, age=28,
-                  hospital_id="H_BLR",
+                  hospital_id="H_FRE",
                   procurement_time_utc="2026-04-25T08:00:00Z",
                   viability_hours=4.0, hla_antigens=["B7"]),
             Donor(donor_id="D003", organ_type=OrganType.LIVER,
                   blood_type=BloodType.O_POS, age=28,
-                  hospital_id="H_BLR",
+                  hospital_id="H_FRE",
                   procurement_time_utc="2026-04-25T08:00:00Z",
                   viability_hours=12.0, hla_antigens=["B7"],
                   meld_score=None),
@@ -213,25 +214,25 @@ TASKS: Dict[str, Dict] = {
             # Heart recipients
             Recipient(recipient_id="R010", organ_needed=OrganType.HEART,
                       blood_type=BloodType.O_POS, age=35,
-                      hospital_id="H_BLR", urgency=UrgencyTier.STATUS_1A,
+                      hospital_id="H_FRE", urgency=UrgencyTier.STATUS_1A,
                       wait_days=30, hla_antibodies=[], pra=0.05),
             Recipient(recipient_id="R011", organ_needed=OrganType.HEART,
                       blood_type=BloodType.A_POS, age=40,    # incompatible
-                      hospital_id="H_HYD", urgency=UrgencyTier.STATUS_1A,
+                      hospital_id="H_MRI", urgency=UrgencyTier.STATUS_1A,
                       wait_days=60, hla_antibodies=[], pra=0.10),
             Recipient(recipient_id="R012", organ_needed=OrganType.HEART,
                       blood_type=BloodType.O_NEG, age=50,
-                      hospital_id="H_CHE", urgency=UrgencyTier.STATUS_1B,
+                      hospital_id="H_QEB", urgency=UrgencyTier.STATUS_1B,
                       wait_days=90, hla_antibodies=["B7"], pra=0.80),  # high PRA
             # Liver recipients
             Recipient(recipient_id="R020", organ_needed=OrganType.LIVER,
                       blood_type=BloodType.O_POS, age=48,
-                      hospital_id="H_HYD", urgency=UrgencyTier.STATUS_1A,
+                      hospital_id="H_MRI", urgency=UrgencyTier.STATUS_1A,
                       wait_days=180, hla_antibodies=[], pra=0.10,
                       meld_score=32),
             Recipient(recipient_id="R021", organ_needed=OrganType.LIVER,
                       blood_type=BloodType.B_POS, age=52,    # incompatible
-                      hospital_id="H_MUM", urgency=UrgencyTier.STATUS_1B,
+                      hospital_id="H_GUY", urgency=UrgencyTier.STATUS_1B,
                       wait_days=300, hla_antibodies=[], pra=0.05,
                       meld_score=28),
         ],
@@ -264,18 +265,18 @@ TASKS: Dict[str, Dict] = {
         "donors": [
             Donor(donor_id="D101", organ_type=OrganType.LUNG,
                   blood_type=BloodType.A_NEG, age=45,
-                  hospital_id="H_DEL",
+                  hospital_id="H_PAP",
                   procurement_time_utc="2026-04-25T10:00:00Z",
                   viability_hours=3.5,     # almost expired at start
                   hla_antigens=["A1", "B8"]),
             Donor(donor_id="D102", organ_type=OrganType.HEART,
                   blood_type=BloodType.O_NEG, age=22,
-                  hospital_id="H_DEL",
+                  hospital_id="H_PAP",
                   procurement_time_utc="2026-04-25T10:00:00Z",
                   viability_hours=4.0, hla_antigens=["A3"]),
             Donor(donor_id="D103", organ_type=OrganType.KIDNEY,
                   blood_type=BloodType.B_POS, age=68,
-                  hospital_id="H_KOL",
+                  hospital_id="H_LGI",
                   procurement_time_utc="2026-04-25T10:00:00Z",
                   viability_hours=24.0, hla_antigens=["B35"],
                   kdpi=0.82),
@@ -284,30 +285,30 @@ TASKS: Dict[str, Dict] = {
             # Lung recipients
             Recipient(recipient_id="R101", organ_needed=OrganType.LUNG,
                       blood_type=BloodType.A_NEG, age=38,
-                      hospital_id="H_DEL", urgency=UrgencyTier.STATUS_1A,
+                      hospital_id="H_PAP", urgency=UrgencyTier.STATUS_1A,
                       wait_days=90, hla_antibodies=["A1", "B8"],
                       pra=0.92),   # positive virtual crossmatch — DO NOT USE
             Recipient(recipient_id="R102", organ_needed=OrganType.LUNG,
                       blood_type=BloodType.A_POS, age=44,  # incompatible
-                      hospital_id="H_BLR", urgency=UrgencyTier.STATUS_1B,
+                      hospital_id="H_FRE", urgency=UrgencyTier.STATUS_1B,
                       wait_days=210, hla_antibodies=[], pra=0.05),
             Recipient(recipient_id="R103", organ_needed=OrganType.LUNG,
                       blood_type=BloodType.A_NEG, age=50,
-                      hospital_id="H_DEL", urgency=UrgencyTier.STATUS_1B,
+                      hospital_id="H_PAP", urgency=UrgencyTier.STATUS_1B,
                       wait_days=300, hla_antibodies=[], pra=0.08),  # correct match
             # Heart recipient
             Recipient(recipient_id="R110", organ_needed=OrganType.HEART,
                       blood_type=BloodType.O_NEG, age=29,
-                      hospital_id="H_DEL", urgency=UrgencyTier.STATUS_1A,
+                      hospital_id="H_PAP", urgency=UrgencyTier.STATUS_1A,
                       wait_days=14, hla_antibodies=["A3"], pra=0.85),  # crossmatch risk
             Recipient(recipient_id="R111", organ_needed=OrganType.HEART,
                       blood_type=BloodType.O_POS, age=33,
-                      hospital_id="H_DEL", urgency=UrgencyTier.STATUS_1B,
+                      hospital_id="H_PAP", urgency=UrgencyTier.STATUS_1B,
                       wait_days=60, hla_antibodies=[], pra=0.10),   # correct
             # Kidney recipient
             Recipient(recipient_id="R120", organ_needed=OrganType.KIDNEY,
                       blood_type=BloodType.B_POS, age=65,
-                      hospital_id="H_KOL", urgency=UrgencyTier.STATUS_2,
+                      hospital_id="H_LGI", urgency=UrgencyTier.STATUS_2,
                       wait_days=600, hla_antibodies=[], pra=0.05,
                       eGFR=12.0),  # correct — older, KDPI match
         ],
@@ -333,12 +334,13 @@ class TransplantEnv:
     Implements step() / reset() / state() with typed Pydantic contracts.
     """
 
-    def __init__(self, task_id: str):
+    def __init__(self, task_id: str, nhs_csv_path: Optional[str] = None):
         assert task_id in TASKS, f"Unknown task: {task_id}"
         self.task_id   = task_id
         self._task     = TASKS[task_id]
         self._hosp_map: Dict[str, Hospital] = {h.hospital_id: h for h in _hospitals()}
         self._state: Optional[TransplantState] = None
+        self.nhs_csv_path = nhs_csv_path
 
     # ── OpenEnv API ───────────────────────────────────────────────────────
 
@@ -742,3 +744,96 @@ class TransplantGrader:
             "organs_wasted": s.organs_wasted,
             "aggregate": round(aggregate, 3),
         }
+
+
+# ── NHS Data Loader ───────────────────────────────────────────────────────────
+
+class NHSDataLoader:
+    """
+    Loads and provides access to NHS Blood and Transplant statistics.
+    Falls back to hardcoded 2022/23 figures if no CSV is provided.
+    """
+
+    # NHSBT Activity Report 2022/23 fallback statistics
+    FALLBACK_STATS = {
+        "kidney": {
+            "annual_transplants": 2262,
+            "waiting_list_size": 4474,
+            "median_wait_days": 780,
+            "utilisation_rate": 0.75,
+            "pct_dcd": 0.44,
+        },
+        "liver": {
+            "annual_transplants": 535,
+            "waiting_list_size": 382,
+            "median_wait_days": 100,
+            "utilisation_rate": 0.82,
+            "pct_dcd": 0.25,
+        },
+        "heart": {
+            "annual_transplants": 145,
+            "waiting_list_size": 277,
+            "median_wait_days": 540,
+            "utilisation_rate": 0.36,
+            "pct_dcd": 0.0,
+        },
+        "lung": {
+            "annual_transplants": 133,
+            "waiting_list_size": 319,
+            "median_wait_days": 450,
+            "utilisation_rate": 0.22,
+            "pct_dcd": 0.08,
+        },
+        "pancreas": {
+            "annual_transplants": 176,
+            "waiting_list_size": 226,
+            "median_wait_days": 365,
+            "utilisation_rate": 0.55,
+            "pct_dcd": 0.15,
+        },
+    }
+
+    def __init__(self, csv_path: Optional[str] = None):
+        self.csv_path = csv_path
+        self._data: Optional[Dict] = None
+        if csv_path:
+            self._load_csv(csv_path)
+
+    def _load_csv(self, path: str) -> None:
+        """Parse the NHSBT activity report CSV."""
+        import csv
+        self._data = {}
+        try:
+            with open(path, "r", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    self._data[row.get("Category", "")] = row
+        except Exception as e:
+            print(f"[NHSDataLoader] CSV load error: {e} — using fallback stats")
+            self._data = None
+
+    def get_organ_stats(self, organ: str) -> Dict[str, Any]:
+        """Return statistics for a given organ type."""
+        return self.FALLBACK_STATS.get(organ.lower(), {})
+
+    @property
+    def total_deceased_donors(self) -> int:
+        if self._data and "Total deceased donors (DD)" in self._data:
+            try:
+                return int(self._data["Total deceased donors (DD)"]
+                          .get("Current year (01.04.22 - 31.03.23)", "1430")
+                          .replace(",", ""))
+            except (ValueError, AttributeError):
+                pass
+        return 1430  # NHSBT 2022/23 fallback
+
+    @property
+    def total_transplants(self) -> int:
+        if self._data and "Total transplants" in self._data:
+            try:
+                return int(self._data["Total transplants"]
+                          .get("Current year (01.04.22 - 31.03.23)", "3479")
+                          .replace(",", ""))
+            except (ValueError, AttributeError):
+                pass
+        return 3479  # NHSBT 2022/23 fallback

@@ -15,8 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY models.py .
 COPY client.py .
 COPY openenv.yaml .
+COPY inference.py .
 COPY server/ ./server/
 COPY baseline/ ./baseline/
+COPY data/ ./data/
 
 # HuggingFace Spaces runs on port 7860
 EXPOSE 7860

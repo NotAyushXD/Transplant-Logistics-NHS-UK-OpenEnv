@@ -4,8 +4,8 @@ Runs an LLM agent (via OpenAI-compatible API) against all 3 tasks
 and produces reproducible baseline scores.
 
 Usage:
-    export OPENAI_API_KEY=sk-...
-    export OPENAI_BASE_URL=https://api.openai.com/v1   # or any compatible endpoint
+    export HF_TOKEN=hf_...
+    export API_BASE_URL=https://api.openai.com/v1   # or any compatible endpoint
     export MODEL_NAME=gpt-4o-mini                       # default
 
     python baseline/inference.py
@@ -26,8 +26,8 @@ from models import ActionType, TransplantAction, TransportMode
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-API_KEY  = os.environ.get("OPENAI_API_KEY", "")
-BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+API_KEY  = os.environ.get("HF_TOKEN", "") or os.environ.get("OPENAI_API_KEY", "")
+BASE_URL = os.environ.get("API_BASE_URL", "") or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
 MODEL    = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 
 SYSTEM_PROMPT = """\
@@ -245,7 +245,7 @@ def main():
     args = parser.parse_args()
 
     if not API_KEY:
-        print("ERROR: set OPENAI_API_KEY environment variable")
+        print("ERROR: set HF_TOKEN or OPENAI_API_KEY environment variable")
         sys.exit(1)
 
     client   = OpenAI(api_key=API_KEY, base_url=BASE_URL)

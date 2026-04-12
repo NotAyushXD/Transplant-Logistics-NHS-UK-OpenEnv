@@ -1,3 +1,12 @@
+---
+title: Transplant Logistics NHS UK OpenEnv
+emoji: 🫀
+colorFrom: red
+colorTo: blue
+sdk: docker
+pinned: false
+---
+
 # 🫀 Transplant Logistics — NHS UK OpenEnv
 
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue)](https://www.python.org/)
@@ -35,7 +44,7 @@ The agent acts as a national transplant coordinator — matching donor organs to
 
 ## Features
 
-- 🏥 **15 real UK NHSBT transplant centres** with accurate coordinates and transport modelling.
+- 🏥 **8 real UK NHSBT transplant centres** with accurate coordinates and transport modelling.
 - 🩸 **Full NHSBT protocol enforcement** — ABO compatibility, HLA crossmatching, PRA thresholds, cold ischaemia limits.
 - 📊 **Calibrated to NHS 2022/23 data** via the [Kaggle NHS Organ Donation dataset](https://www.kaggle.com/datasets/patricklford/nhs-organ-donation).
 - ⚡ **Dense reward function** — feedback on every action, not just episode end.
@@ -52,7 +61,7 @@ The agent acts as a national transplant coordinator — matching donor organs to
 │                          RL LOOP                             │
 │                                                              │
 │  [ LLM Agent ]  ←→  [ FastAPI Server ]  ←→  [ Simulation ]   │
-│  inference_hf.py      app.py               environment.py    │
+│  inference.py      app.py               environment.py    │
 │                                                              │
 │  Reads observation    Routes HTTP calls    Holds state,      │
 │  Decides action       to env instances     enforces rules,   │
@@ -82,7 +91,7 @@ export GROQ_API_KEY=gsk_your_key_here
 uvicorn server.app:app --host 0.0.0.0 --port 7860 --reload &
 
 # 5. Run the agent
-python baseline/inference_hf.py --backend groq
+python inference.py
 ```
 
 ---
@@ -167,13 +176,13 @@ Interactive API docs available at http://localhost:7860/docs.
 # Get a free key at https://console.groq.com
 export GROQ_API_KEY=gsk_your_key_here
 
-python baseline/inference_hf.py --backend groq --csv data/nhs/NHS_Organ_Donation.csv
+python baseline/inference.py --backend groq --csv data/nhs/NHS_Organ_Donation.csv
 ```
 
 **HuggingFace local model (no account needed)**
 
 ```bash
-python baseline/inference_hf.py --backend local --model Qwen/Qwen2.5-1.5B-Instruct
+python baseline/inference.py --backend local --model Qwen/Qwen2.5-1.5B-Instruct
 ```
 
 **HuggingFace Inference API**
@@ -182,7 +191,7 @@ python baseline/inference_hf.py --backend local --model Qwen/Qwen2.5-1.5B-Instru
 
 ```bash
 export HF_TOKEN=hf_your_token_here
-python baseline/inference_hf.py --backend api --model Qwen/Qwen2.5-1.5B-Instruct
+python baseline/inference.py --backend api --model Qwen/Qwen2.5-1.5B-Instruct
 ```
 
 ### CLI reference
@@ -264,7 +273,7 @@ The agent carries its full conversation history across steps so it can reason ab
 
 ```bash
 # Reduce if hitting 413 on smaller models
-python baseline/inference_hf.py --backend groq --history-turns 2
+python baseline/inference.py --backend groq --history-turns 2
 ```
 
 ### NHSBT Protocol constants (`server/environment.py`)
@@ -329,7 +338,7 @@ python training/train_grpo.py \
 Once your model checkpoints are saved, you can run the inference script over them to thoroughly observe exactly what decisions the updated weights propose.
 
 ```bash
-python baseline/inference_hf.py \
+python baseline/inference.py \
     --backend local \
     --model ./checkpoints/transplant-grpo \
     --csv data/nhs/NHS_Organ_Donation.csv
@@ -360,9 +369,9 @@ Every call to `env.step(action)` runs four things in sequence:
 
 Returns **0.0 immediately** for blood-type or organ-type mismatch.
 
-**Transport times** use the Haversine formula between real UK hospital coordinates plus mode-specific speed and overhead (ground ambulance 70 km/h, air charter 280 km/h, commercial 500 km/h).
+**Transport times** use the Haversine formula between real UK hospital coordinates plus mode-specific speed and overhead (ground ambulance 80 km/h, air charter 280 km/h, commercial 500 km/h).
 
-### LLM agent (`baseline/inference_hf.py`)
+### LLM agent (`baseline/inference.py`)
 
 ```
 obs = env.reset()
@@ -406,7 +415,7 @@ transplant-env/
 │   └── environment.py         Core simulation, compatibility, reward, grader
 ├── baseline/
 │   ├── __init__.py
-│   └── inference_hf.py        LLM agent (Groq / HF API / local backends)
+│   └── inference.py        LLM agent (Groq / HF API / local backends)
 └── training/
     ├── __init__.py
     └── train_grpo.py          GRPO fine-tuning loop (TRL)
