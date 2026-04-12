@@ -12,7 +12,7 @@ Exposes the OpenEnv HTTP interface:
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any, Dict, Optional
@@ -29,7 +29,6 @@ app = FastAPI(
         "for RL agent training. Implements the OpenEnv step()/reset()/state() API. "
         "Calibrated to NHS Blood and Transplant (NHSBT) 2022/23 data."
     ),
-    # FIX: version was "1.0.0" — run_guide expects "2.0.0"
     version="2.0.0",
 )
 
@@ -47,16 +46,9 @@ _grader = TransplantGrader()
 
 # ── Request schemas ───────────────────────────────────────────────────────────
 
-class ResetRequest(BaseModel):
-    task_id: str = "task_easy_clear_match"   # default task
-    seed: int = 42
-
 class StepRequest(BaseModel):
     task_id: str
     action:  TransplantAction
-
-class GradeRequest(BaseModel):
-    task_id: str
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -83,40 +75,64 @@ def list_tasks():
     }
 
 
-@app.post("/reset", response_model=TransplantObservation)
-def reset(req: ResetRequest):
-    if req.task_id not in TASKS:
-        raise HTTPException(404, f"Unknown task_id: {req.task_id}")
-    env = TransplantEnv(req.task_id)
-    _envs[req.task_id] = env
-    return env.reset(seed=req.seed)
+@app.post("/reset")
+async def reset(request: Request):
+    """Reset the environment. Accepts empty body (uses defaults) or JSON with task_id/seed."""
+    try:
+        body = await request.json()
+        if body is None:
+            body = {}
+    except Exception:
+        body = {}
+
+    task_id = body.get("task_id", "task_easy_clear_match")
+    seed = body.get("seed", 42)
+
+    if task_id not in TASKS:
+        raise HTTPException(404, f"Unknown task_id: {task_id}")
+    env = TransplantEnv(task_id)
+    _envs[task_id] = env
+    obs = env.reset(seed=seed)
+    return obs.model_dump()
 
 
-@app.post("/step", response_model=StepResult)
+@app.post("/step")
 def step(req: StepRequest):
     env = _envs.get(req.task_id)
     if env is None:
         raise HTTPException(400, "Call /reset first")
-    return env.step(req.action)
+    result = env.step(req.action)
+    return result.model_dump()
 
 
-@app.get("/state", response_model=TransplantState)
+@app.get("/state")
 def state(task_id: str = "task_easy_clear_match"):
     env = _envs.get(task_id)
     if env is None:
         raise HTTPException(400, "Call /reset first")
-    return env.state()
+    s = env.state()
+    return s.model_dump()
 
 
 @app.post("/grade")
-def grade(req: GradeRequest) -> Dict[str, Any]:
-    env = _envs.get(req.task_id)
+async def grade(request: Request) -> Dict[str, Any]:
+    """Grade the current episode. Accepts JSON with task_id or empty body (uses default)."""
+    try:
+        body = await request.json()
+        if body is None:
+            body = {}
+    except Exception:
+        body = {}
+
+    task_id = body.get("task_id", "task_easy_clear_match")
+
+    env = _envs.get(task_id)
     if env is None:
         raise HTTPException(400, "Call /reset first")
     s      = env.state()
-    task   = TASKS[req.task_id]
+    task   = TASKS[task_id]
     scores = _grader.grade(s, task)
-    return {"task_id": req.task_id, "scores": scores}
+    return {"task_id": task_id, "scores": scores}
 
 
 @app.get("/")
