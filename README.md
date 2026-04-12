@@ -48,9 +48,8 @@ The agent acts as a national transplant coordinator — matching donor organs to
 - 🩸 **Full NHSBT protocol enforcement** — ABO compatibility, HLA crossmatching, PRA thresholds, cold ischaemia limits.
 - 📊 **Calibrated to NHS 2022/23 data** via the [Kaggle NHS Organ Donation dataset](https://www.kaggle.com/datasets/patricklford/nhs-organ-donation).
 - ⚡ **Dense reward function** — feedback on every action, not just episode end.
-- 🤖 **Three inference backends** — Groq (free), HuggingFace API, or local model weights.
-- 🎓 **GRPO fine-tuning** — post-training script using TRL's `GRPOTrainer`.
-- 🌐 **OpenEnv-compliant HTTP API** — FastAPI server with Swagger UI.
+- 🎯 **7-component grader** — transplant rate, quality, viability margin, urgency priority, safety, step efficiency, and transport optimality.
+- 🏗️ **5 tasks (easy → expert)** — single organ, multi-organ cascade, DCD split allocation, expiry crisis, and national multi-centre surge.
 
 ---
 
@@ -227,6 +226,18 @@ Two organs from the same DBD donor. The heart has **4h viability**, the liver **
 Three donors, five recipients, 20 steps. A DCD lung expires within 3 steps. The Status 1A heart recipient has a **positive virtual crossmatch** (hyperacute rejection risk — do not match). A high-KDPI=0.85 kidney should go to the older recipient. Requires crossmatch protocol, PRA reasoning, and KDPI age-matching simultaneously.
 
 **Required actions:** crossmatch → match lung → dispatch → crossmatch → match heart → dispatch → match kidney → dispatch → `notify_team`
+
+### 🟠 Medium-Hard — DCD Pancreas-Kidney Split
+
+A DCD (donation after circulatory death) donor provides a kidney (18h) and pancreas (8h) with **reduced viability** compared to standard DBD organs. One kidney recipient has PRA=0.88 — crossmatch comes back positive. The agent must allocate the pancreas to the urgent local recipient, reject the high-PRA candidate, and match the kidney to the older local patient whose age is appropriate for the moderate KDPI. Tests DCD-specific reasoning and local allocation preference.
+
+**Required actions:** match pancreas → dispatch → crossmatch (reject) → match kidney → dispatch → `notify_team`
+
+### ⚫ Expert — National Surge (4 Donors, 4 Centres)
+
+Four donors at Guy's London, Freeman Newcastle, QE Birmingham, and Edinburgh Royal — simultaneously. Eight recipients nationwide. The lung has only **5h viability** (match first). One heart recipient has PRA=0.90 (crossmatch trap). The kidney donor has KDPI=0.72 (allocate to older recipient). The liver recipient with MELD=38 is highest priority. Requires simultaneous multi-centre logistics reasoning, optimal transport mode selection, and correct triage under cascading time pressure. Mirrors real NHSBT national offering rounds.
+
+**Required actions:** match lung → dispatch → match heart → dispatch → match liver → dispatch → match kidney → dispatch → `notify_team`
 
 ---
 
@@ -405,6 +416,7 @@ transplant-env/
 ├── client.py                  HTTP client wrapper for training loops
 ├── nhs_data_explorer.py       NHS data inspection + heuristic smoke test
 ├── smoke_test.py              Minimal import + reset test
+├── tests.py                   Comprehensive test suite (12 test groups)
 ├── openenv.yaml               OpenEnv framework metadata
 ├── requirements.txt
 ├── data/

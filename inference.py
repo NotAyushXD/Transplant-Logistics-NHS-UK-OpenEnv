@@ -9,7 +9,7 @@ Required environment variables:
 
 Optional:
     ENV_URL        — base URL of the deployed environment
-                     (default: https://thanya710-transplant-logistics-env.hf.space)
+                     (default: https://notayushxd-transplant-logistics-env.hf.space)
     TASK_NAME      — single task to run (default: runs all tasks)
 """
 

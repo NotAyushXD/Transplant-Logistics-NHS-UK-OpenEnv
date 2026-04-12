@@ -4,11 +4,13 @@ Simulates real-world organ allocation decisions:
   - Donor ↔ recipient compatibility matching
   - Cold ischaemia viability windows
   - Transport logistics
-  - UNOS-style priority scoring
+  - NHSBT-style priority scoring
 
-Three tasks: easy (single organ, clear match) →
-             medium (multi-organ, competing recipients) →
-             hard (cascade failure, expiring viability, misleading signals)
+Five tasks: easy   (single organ, clear match) →
+           medium  (multi-organ, competing recipients) →
+           medhard (DCD donor, pancreas-kidney split) →
+           hard    (cascade failure, expiring viability, misleading signals) →
+           expert  (national surge — 4 donors across 4 centres)
 """
 
 from __future__ import annotations
@@ -319,6 +321,174 @@ TASKS: Dict[str, Dict] = {
             ActionType.MATCH_ORGAN,
             ActionType.DISPATCH_TRANSPORT,
             ActionType.MATCH_ORGAN,
+            ActionType.DISPATCH_TRANSPORT,
+            ActionType.NOTIFY_TEAM,
+        ],
+    },
+
+    # ── MEDIUM-HARD: DCD donor, pancreas-kidney split, local-vs-distant ────
+    "task_medhard_dcd_split": {
+        "id": "task_medhard_dcd_split",
+        "name": "DCD pancreas-kidney split — reduced viability + local advantage",
+        "difficulty": "medium-hard",
+        "description": (
+            "A DCD (donation after circulatory death) donor provides a kidney "
+            "and a pancreas with reduced viability (18 h kidney, 8 h pancreas). "
+            "DCD organs suffer more warm ischaemia, making local allocation "
+            "strongly preferred. One kidney recipient has high PRA (0.88) and "
+            "needs a crossmatch — which will come back positive. The correct "
+            "strategy is to allocate the pancreas to the urgent local recipient, "
+            "crossmatch the high-PRA kidney candidate (reject), then allocate "
+            "the kidney to the older local recipient whose age matches the "
+            "moderate KDPI. Dispatching both organs via ground transport "
+            "(same hospital) is optimal."
+        ),
+        "max_steps": 12,
+        "donors": [
+            Donor(donor_id="D201", organ_type=OrganType.PANCREAS,
+                  blood_type=BloodType.A_POS, age=44,
+                  hospital_id="H_ERI",
+                  procurement_time_utc="2026-04-25T07:00:00Z",
+                  viability_hours=8.0,       # DCD: reduced from 12h
+                  hla_antigens=["A2", "B27"]),
+            Donor(donor_id="D202", organ_type=OrganType.KIDNEY,
+                  blood_type=BloodType.A_POS, age=44,
+                  hospital_id="H_ERI",
+                  procurement_time_utc="2026-04-25T07:00:00Z",
+                  viability_hours=18.0,      # DCD: reduced from 24h
+                  hla_antigens=["A2", "B27"],
+                  kdpi=0.55),
+        ],
+        "recipients": [
+            # Pancreas recipient — urgent, local, clear best match
+            Recipient(recipient_id="R201", organ_needed=OrganType.PANCREAS,
+                      blood_type=BloodType.A_POS, age=39,
+                      hospital_id="H_ERI", urgency=UrgencyTier.STATUS_1A,
+                      wait_days=280, hla_antibodies=[], pra=0.04),
+            # Kidney — high PRA trap (crossmatch will be positive)
+            Recipient(recipient_id="R202", organ_needed=OrganType.KIDNEY,
+                      blood_type=BloodType.A_POS, age=47,
+                      hospital_id="H_MRI", urgency=UrgencyTier.STATUS_1B,
+                      wait_days=350, hla_antibodies=["A2", "B27"],
+                      pra=0.88),
+            # Kidney — correct match: older, local, moderate KDPI acceptable
+            Recipient(recipient_id="R203", organ_needed=OrganType.KIDNEY,
+                      blood_type=BloodType.A_POS, age=62,
+                      hospital_id="H_ERI", urgency=UrgencyTier.STATUS_2,
+                      wait_days=520, hla_antibodies=[], pra=0.06,
+                      eGFR=14.0, dialysis_days=480),
+            # Kidney — blood type incompatible distractor
+            Recipient(recipient_id="R204", organ_needed=OrganType.KIDNEY,
+                      blood_type=BloodType.B_NEG, age=35,
+                      hospital_id="H_FRE", urgency=UrgencyTier.STATUS_1A,
+                      wait_days=60, hla_antibodies=[], pra=0.10),
+        ],
+        "required_actions": [
+            ActionType.MATCH_ORGAN,          # pancreas → R201
+            ActionType.DISPATCH_TRANSPORT,   # ground (same hospital)
+            ActionType.REQUEST_CROSSMATCH,   # R202 (positive → reject)
+            ActionType.MATCH_ORGAN,          # kidney → R203
+            ActionType.DISPATCH_TRANSPORT,   # ground (same hospital)
+            ActionType.NOTIFY_TEAM,
+        ],
+    },
+
+    # ── EXPERT: 4 donors, 4 centres, national surge ──────────────────────
+    "task_expert_national_surge": {
+        "id": "task_expert_national_surge",
+        "name": "National surge — 4 donors across 4 centres simultaneously",
+        "difficulty": "expert",
+        "description": (
+            "A national organ-sharing surge: four donors at four different "
+            "NHSBT centres (London, Newcastle, Birmingham, Edinburgh) with "
+            "eight recipients nationwide. A lung has only 5 h viability and "
+            "must be matched first. One heart recipient has PRA=0.90 — the "
+            "agent must crossmatch before considering them. The kidney donor "
+            "has KDPI=0.72, so the organ should go to an older recipient. "
+            "The liver recipient with MELD=38 is the highest priority. "
+            "Correct allocation requires simultaneous multi-centre logistics "
+            "reasoning: which transport mode for each distance, which organs "
+            "to prioritise by expiry window, and when to decline suboptimal "
+            "matches. This mirrors real NHSBT national offering rounds."
+        ),
+        "max_steps": 25,
+        "donors": [
+            Donor(donor_id="D301", organ_type=OrganType.HEART,
+                  blood_type=BloodType.O_NEG, age=25,
+                  hospital_id="H_GUY",
+                  procurement_time_utc="2026-04-25T09:00:00Z",
+                  viability_hours=4.0, hla_antigens=["A1", "B8"]),
+            Donor(donor_id="D302", organ_type=OrganType.LIVER,
+                  blood_type=BloodType.A_POS, age=35,
+                  hospital_id="H_FRE",
+                  procurement_time_utc="2026-04-25T09:00:00Z",
+                  viability_hours=12.0, hla_antigens=["A3", "B44"]),
+            Donor(donor_id="D303", organ_type=OrganType.LUNG,
+                  blood_type=BloodType.B_POS, age=40,
+                  hospital_id="H_QEB",
+                  procurement_time_utc="2026-04-25T09:00:00Z",
+                  viability_hours=5.0, hla_antigens=["A11"]),  # tight!
+            Donor(donor_id="D304", organ_type=OrganType.KIDNEY,
+                  blood_type=BloodType.O_POS, age=55,
+                  hospital_id="H_ERI",
+                  procurement_time_utc="2026-04-25T09:00:00Z",
+                  viability_hours=24.0, hla_antigens=["B35", "DR4"],
+                  kdpi=0.72),
+        ],
+        "recipients": [
+            # Heart — correct match (local London, compatible, low PRA)
+            Recipient(recipient_id="R301", organ_needed=OrganType.HEART,
+                      blood_type=BloodType.O_POS, age=30,
+                      hospital_id="H_GUY", urgency=UrgencyTier.STATUS_1A,
+                      wait_days=45, hla_antibodies=[], pra=0.05),
+            # Heart — TRAP: high PRA, far away (Edinburgh), crossmatch risk
+            Recipient(recipient_id="R302", organ_needed=OrganType.HEART,
+                      blood_type=BloodType.O_NEG, age=42,
+                      hospital_id="H_ERI", urgency=UrgencyTier.STATUS_1A,
+                      wait_days=90, hla_antibodies=["A1", "B8"],
+                      pra=0.90),
+            # Liver — correct match (MELD=38, highest liver priority)
+            Recipient(recipient_id="R303", organ_needed=OrganType.LIVER,
+                      blood_type=BloodType.A_POS, age=50,
+                      hospital_id="H_MRI", urgency=UrgencyTier.STATUS_1A,
+                      wait_days=150, hla_antibodies=[], pra=0.08,
+                      meld_score=38),
+            # Liver — incompatible blood type distractor
+            Recipient(recipient_id="R304", organ_needed=OrganType.LIVER,
+                      blood_type=BloodType.B_POS, age=48,
+                      hospital_id="H_FRE", urgency=UrgencyTier.STATUS_1B,
+                      wait_days=300, hla_antibodies=[], pra=0.05,
+                      meld_score=25),
+            # Lung — correct match (same hospital Birmingham, compatible)
+            Recipient(recipient_id="R305", organ_needed=OrganType.LUNG,
+                      blood_type=BloodType.B_POS, age=38,
+                      hospital_id="H_QEB", urgency=UrgencyTier.STATUS_1A,
+                      wait_days=180, hla_antibodies=[], pra=0.12),
+            # Lung — compatible but far (Leeds), tight viability
+            Recipient(recipient_id="R306", organ_needed=OrganType.LUNG,
+                      blood_type=BloodType.AB_POS, age=55,
+                      hospital_id="H_LGI", urgency=UrgencyTier.STATUS_1B,
+                      wait_days=90, hla_antibodies=[], pra=0.05),
+            # Kidney — correct match (local Edinburgh, older, KDPI-appropriate)
+            Recipient(recipient_id="R307", organ_needed=OrganType.KIDNEY,
+                      blood_type=BloodType.O_POS, age=64,
+                      hospital_id="H_ERI", urgency=UrgencyTier.STATUS_2,
+                      wait_days=800, hla_antibodies=[], pra=0.03,
+                      eGFR=11.0, dialysis_days=720),
+            # Kidney — young recipient + high KDPI = suboptimal pairing
+            Recipient(recipient_id="R308", organ_needed=OrganType.KIDNEY,
+                      blood_type=BloodType.O_POS, age=28,
+                      hospital_id="H_KCH", urgency=UrgencyTier.STATUS_1B,
+                      wait_days=60, hla_antibodies=[], pra=0.35),
+        ],
+        "required_actions": [
+            ActionType.MATCH_ORGAN,          # lung first (tightest viability)
+            ActionType.DISPATCH_TRANSPORT,
+            ActionType.MATCH_ORGAN,          # heart
+            ActionType.DISPATCH_TRANSPORT,
+            ActionType.MATCH_ORGAN,          # liver
+            ActionType.DISPATCH_TRANSPORT,
+            ActionType.MATCH_ORGAN,          # kidney
             ActionType.DISPATCH_TRANSPORT,
             ActionType.NOTIFY_TEAM,
         ],
@@ -655,20 +825,24 @@ class TransplantEnv:
 class TransplantGrader:
     """
     Scores a completed episode 0.0–1.0.
-    Components:
-      - transplant_rate:    fraction of available organs matched (0.35)
-      - quality:            mean compatibility score of accepted matches (0.25)
-      - viability_margin:   fraction of transplants with ≥ 30 min margin (0.20)
-      - urgency_priority:   did highest-urgency recipients get matched first (0.10)
-      - no_harmful_matches: penalty for dangerous high-PRA without crossmatch (0.10)
+    Seven components (weights sum to 1.0):
+      - transplant_rate      (0.30): fraction of available organs matched
+      - quality              (0.20): mean compatibility score of accepted matches
+      - viability_margin     (0.15): fraction of transplants with ≥ 30 min margin
+      - urgency_priority     (0.10): did highest-urgency recipients get matched first
+      - safety               (0.10): penalty for dangerous high-PRA without crossmatch
+      - step_efficiency      (0.08): fewer wasted steps = higher score
+      - transport_optimality (0.07): did the agent pick the right transport mode
     """
 
     WEIGHTS = {
-        "transplant_rate":   0.35,
-        "quality":           0.25,
-        "viability_margin":  0.20,
-        "urgency_priority":  0.10,
-        "safety":            0.10,
+        "transplant_rate":      0.30,
+        "quality":              0.20,
+        "viability_margin":     0.15,
+        "urgency_priority":     0.10,
+        "safety":               0.10,
+        "step_efficiency":      0.08,
+        "transport_optimality": 0.07,
     }
 
     def grade(self, final_state: TransplantState,
@@ -677,23 +851,23 @@ class TransplantGrader:
         accepted = [m for m in s.matches if m.accepted]
         total_donors = len(task["donors"])
 
-        # Transplant rate
+        # ── Transplant rate ──
         transplant_rate = len(accepted) / max(total_donors, 1)
 
-        # Match quality
+        # ── Match quality ──
         quality = (
             sum(m.compatibility_score for m in accepted) / len(accepted)
             if accepted else 0.0
         )
 
-        # Viability margin
+        # ── Viability margin ──
         with_margin = [
             m for m in accepted
             if (m.remaining_viability_minutes - m.transport_minutes) >= 30
         ]
         viability_margin = len(with_margin) / max(len(accepted), 1) if accepted else 0.0
 
-        # Urgency priority: did Status 1A recipients get matched?
+        # ── Urgency priority: did Status 1A recipients get matched? ──
         orig_1a = [r for r in task["recipients"]
                    if r.urgency == UrgencyTier.STATUS_1A]
         matched_1a = [
@@ -706,7 +880,7 @@ class TransplantGrader:
             len(matched_1a) / len(orig_1a) if orig_1a else 1.0
         )
 
-        # Safety: penalise dangerous high-PRA matches without crossmatch
+        # ── Safety: penalise dangerous high-PRA matches without crossmatch ──
         dangerous = 0
         for m in accepted:
             recip = next(
@@ -724,15 +898,81 @@ class TransplantGrader:
                     dangerous += 1
         safety = max(0.0, 1.0 - dangerous * 0.5)
 
-        # Organ waste penalty
+        # ── Step efficiency: ratio of minimum required actions to actual steps ──
+        min_actions = len(task.get("required_actions", []))
+        if min_actions > 0 and s.step > 0:
+            step_efficiency = min(1.0, min_actions / s.step)
+        else:
+            step_efficiency = 1.0 if s.step == 0 else 0.5
+
+        # ── Transport optimality: did the agent pick the best mode? ──
+        hosp_map = {h.hospital_id: h for h in _hospitals()}
+        transport_scores = []
+        for log_entry in s.action_log:
+            if log_entry.get("action") != "dispatch_transport":
+                continue
+            donor_id = log_entry.get("donor_id")
+            # Find the corresponding match to get recipient info
+            match = next(
+                (m for m in s.matches
+                 if m.donor_id == donor_id and m.accepted), None
+            )
+            if not match:
+                continue
+            # Look up hospitals
+            donor_obj = next(
+                (d for d in task["donors"]
+                 if d.donor_id == donor_id), None
+            )
+            recip_obj = next(
+                (r for r in task["recipients"]
+                 if r.recipient_id == match.recipient_id), None
+            )
+            if not donor_obj or not recip_obj:
+                continue
+            dh = hosp_map.get(donor_obj.hospital_id)
+            rh = hosp_map.get(recip_obj.hospital_id)
+            if not dh or not rh:
+                continue
+            dist = haversine_km(dh.lat, dh.lon, rh.lat, rh.lon)
+            # Determine optimal mode based on distance
+            if dist < 20:        # same city → ground
+                optimal = "ground"
+            elif dist < 250:     # regional → charter
+                optimal = "charter"
+            else:                # national → charter (still best in UK)
+                optimal = "charter"
+            # Check what mode was actually used (from action_log we
+            # don't store mode, but we can infer from transport_minutes)
+            # Best approach: compare achieved transport time with optimal
+            optimal_time = transport_minutes(dh, rh, TransportMode.GROUND)
+            for mode in [TransportMode.CHARTER, TransportMode.COMMERCIAL]:
+                t = transport_minutes(dh, rh, mode)
+                if t < optimal_time:
+                    optimal_time = t
+            # If achieved time is within 20% of optimal, count as good
+            if match.transport_minutes > 0:
+                ratio = optimal_time / match.transport_minutes
+                transport_scores.append(min(1.0, ratio))
+            else:
+                transport_scores.append(1.0)  # same-hospital dispatch
+
+        transport_optimality = (
+            sum(transport_scores) / len(transport_scores)
+            if transport_scores else 1.0
+        )
+
+        # ── Organ waste penalty ──
         waste_penalty = s.organs_wasted * 0.15
 
         components = {
-            "transplant_rate":  round(transplant_rate, 3),
-            "quality":          round(quality, 3),
-            "viability_margin": round(viability_margin, 3),
-            "urgency_priority": round(urgency_priority, 3),
-            "safety":           round(safety, 3),
+            "transplant_rate":      round(transplant_rate, 3),
+            "quality":              round(quality, 3),
+            "viability_margin":     round(viability_margin, 3),
+            "urgency_priority":     round(urgency_priority, 3),
+            "safety":               round(safety, 3),
+            "step_efficiency":      round(step_efficiency, 3),
+            "transport_optimality": round(transport_optimality, 3),
         }
         aggregate = sum(
             components[k] * self.WEIGHTS[k] for k in components
