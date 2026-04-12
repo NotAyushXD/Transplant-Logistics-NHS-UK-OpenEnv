@@ -27,7 +27,7 @@ MODEL_NAME   = os.getenv("MODEL_NAME")   or "Qwen/Qwen2.5-72B-Instruct"
 HF_TOKEN     = os.getenv("HF_TOKEN")     or os.getenv("API_KEY") or ""
 
 # Environment URL — the deployed HF Space
-ENV_URL      = os.getenv("ENV_URL", "https://thanya710-transplant-logistics-env.hf.space")
+ENV_URL      = os.getenv("ENV_URL", "https://notayushxd-transplant-logistics-env.hf.space")
 
 TASK_NAME    = os.getenv("TASK_NAME", "")
 BENCHMARK    = "transplant-logistics-env"
